@@ -1,4 +1,5 @@
 import { TwitterApi } from "twitter-api-v2";
+import * as fs from "fs";
 // import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
 import * as dotenv from "dotenv";
@@ -6,12 +7,37 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 async function testTwitterIntegration() {
-  const client = new TwitterApi({
-    appKey: process.env.TWITTER_API_KEY!,
-    appSecret: process.env.TWITTER_API_SECRET!,
-    accessToken: process.env.TWITTER_ACCESS_TOKEN!,
-    accessSecret: process.env.TWITTER_ACCESS_SECRET!,
+  // Initialize Twitter client for OAuth 2.0
+  const appClient = new TwitterApi({
+    clientId: process.env.TWITTER_CLIENT_ID!,
+    clientSecret: process.env.TWITTER_CLIENT_SECRET!,
   });
+
+  // Authenticate with Twitter using the OAuth 2.0 refresh token
+  console.log("Authenticating with Twitter for tests...");
+  const { client, accessToken, refreshToken: newRefreshToken } = await appClient.refreshOAuth2Token(process.env.TWITTER_REFRESH_TOKEN!);
+  console.log("Twitter authentication successful.");
+
+  if (newRefreshToken) {
+    console.log("A new Refresh Token was issued during tests. Updating .env file...");
+    try {
+      const envPath = '.env';
+      let envFileContent = fs.readFileSync(envPath, 'utf8');
+      if (envFileContent.includes('TWITTER_REFRESH_TOKEN')) {
+        envFileContent = envFileContent.replace(
+          /^TWITTER_REFRESH_TOKEN=.*$/m,
+          `TWITTER_REFRESH_TOKEN=${newRefreshToken}`
+        );
+      } else {
+        envFileContent += `\nTWITTER_REFRESH_TOKEN=${newRefreshToken}`;
+      }
+      fs.writeFileSync(envPath, envFileContent);
+      console.log(".env file updated successfully.");
+    } catch (error) {
+      console.error("Error updating .env file during tests:", error);
+      console.log("Please update the TWITTER_REFRESH_TOKEN in your .env file manually with:", newRefreshToken);
+    }
+  }
 
 //   const llm = new ChatAnthropic({
 //     anthropicApiKey: process.env.ANTHROPIC_API_KEY!,

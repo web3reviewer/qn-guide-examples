@@ -24,16 +24,50 @@ export class BaseAIAgent {
   private lastProcessedMentionId: string | null = null;
 
   constructor() {
-    // Initialize Twitter client
+    // Initialize Twitter client for OAuth 2.0.
+    // The user-level tokens will be applied in the async initialize method.
     this.twitterClient = new TwitterApi({
-      appKey: process.env.TWITTER_API_KEY!,
-      appSecret: process.env.TWITTER_API_SECRET!,
-      accessToken: process.env.TWITTER_ACCESS_TOKEN!,
-      accessSecret: process.env.TWITTER_ACCESS_SECRET!,
+      clientId: process.env.TWITTER_CLIENT_ID!,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET!,
     });
   }
 
   async initialize() {
+    // Authenticate with Twitter using the OAuth 2.0 refresh token
+    try {
+      console.log("Authenticating with Twitter...");
+      const { client: refreshedClient, accessToken, refreshToken: newRefreshToken } = await this.twitterClient.refreshOAuth2Token(process.env.TWITTER_REFRESH_TOKEN!);
+      this.twitterClient = refreshedClient;
+      console.log("Twitter authentication successful.");
+
+      // If a new refresh token is issued, save it for future use.
+      if (newRefreshToken) {
+        console.log("A new Refresh Token was issued. Updating .env file...");
+        try {
+          const envPath = '.env';
+          let envFileContent = fs.readFileSync(envPath, 'utf8');
+          // Use a regular expression to safely replace the token, or add it if it doesn't exist
+          if (envFileContent.includes('TWITTER_REFRESH_TOKEN')) {
+            envFileContent = envFileContent.replace(
+              /^TWITTER_REFRESH_TOKEN=.*$/m,
+              `TWITTER_REFRESH_TOKEN=${newRefreshToken}`
+            );
+          } else {
+            envFileContent += `\nTWITTER_REFRESH_TOKEN=${newRefreshToken}`;
+          }
+          fs.writeFileSync(envPath, envFileContent);
+          console.log(".env file updated successfully with new refresh token.");
+        } catch (error) {
+          console.error("Error updating .env file:", error);
+          console.log("Please update the TWITTER_REFRESH_TOKEN in your .env file manually with:", newRefreshToken);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh Twitter token:", error);
+      console.log("Please run 'npm run auth' to get a new refresh token and update your .env file.");
+      throw new Error("Twitter authentication failed.");
+    }
+
     let walletDataStr: string | null = null;
 
     // Read existing wallet data if available

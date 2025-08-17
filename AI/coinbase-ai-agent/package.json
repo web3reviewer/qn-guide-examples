@@ -6,7 +6,8 @@
   "scripts": {
     "test": "ts-node src/test.ts",
     "start:mentions": "ts-node src/checkMentions.ts",
-    "start:autonomous": "ts-node src/autonomous.ts"
+    "start:autonomous": "ts-node src/autonomous.ts",
+    "auth": "ts-node src/auth.ts"
   },
   "keywords": [],
   "author": "",
